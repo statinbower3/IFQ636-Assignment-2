@@ -95,15 +95,10 @@ jobs:
 
       - name: Restart backend with PM2
         run: |
+          unset RUNNER_TRACKING_ID
           pm2 restart mern-backend 2>/dev/null || \
             pm2 start /home/ubuntu/app/backend/server.js --name mern-backend
           pm2 save
 
       - name: Reload Nginx
         run: sudo systemctl reload nginx
-
-
-
-
-
-        
