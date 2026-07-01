@@ -15,6 +15,7 @@
  * be composed, reordered, or replaced without touching the server setup.
  */
 
+const path       = require('path');
 const express    = require('express');
 const dotenv     = require('dotenv');
 const cors       = require('cors');
@@ -27,7 +28,7 @@ const {
   buildChain,
 } = require('./patterns/chain/RequestChain');
 
-dotenv.config();
+dotenv.config({ path: path.join(__dirname, '.env') });
 
 const app = express();
 
