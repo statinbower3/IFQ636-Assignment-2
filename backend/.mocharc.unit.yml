@@ -1,0 +1,7 @@
+# Mocha config for the UNIT test suite ONLY.
+# Runs the isolated, no-database unit tests under test/unit/.
+# Use via:  npm run test:unit
+spec: 'test/unit/**/*.test.js'
+require: './test/unit/_setup.js'
+timeout: 5000
+exit: true
