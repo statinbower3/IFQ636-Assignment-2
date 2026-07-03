@@ -28,7 +28,7 @@ A full-stack course registration platform built on the MERN stack (MongoDB, Expr
 ## Features
 
 ### Student
-- Register and log in securely (JWT authentication with bcrypt password hashing)
+- Register and log in securely (JWT authentication via jsonwebtoken (npm, 2024b) with bcrypt password hashing (npm, 2024a))
 - Browse all available courses with real-time capacity indicators
 - Enrol in courses (capacity enforced — full courses are blocked with HTTP 400)
 - Drop enrolled courses (enrolled counter decrements automatically)
@@ -43,6 +43,8 @@ A full-stack course registration platform built on the MERN stack (MongoDB, Expr
 ---
 
 ## Tech Stack
+
+The stack pairs a React (React, 2024) and Tailwind CSS (Tailwind Labs, 2024) client with an Express.js (Express.js, 2024) API layered over MongoDB Atlas (MongoDB, 2024) through Mongoose (Mongoose, 2024); the browser talks to the API via Axios (Axios, 2024).
 
 | Layer | Technology | Version |
 |---|---|---|
@@ -141,7 +143,7 @@ assignment-1-IFQ636/
 
 ## Design Patterns & OOP
 
-The backend demonstrates seven Gang-of-Four design patterns (Gamma et al., 1994) and a four-class OOP inheritance hierarchy, both layered on top of the existing Express/Mongoose architecture without changing any API contracts. Every pattern file under `backend/patterns/` carries a JSDoc header explaining its purpose, the OOP concepts it relies on, and how it is wired into the controllers.
+The backend demonstrates seven Gang-of-Four design patterns (Gamma et al., 1994; Refactoring Guru, 2024) and a four-class OOP inheritance hierarchy, both layered on top of the existing Express/Mongoose architecture without changing any API contracts. Every pattern file under `backend/patterns/` carries a JSDoc header explaining its purpose, the OOP concepts it relies on, and how it is wired into the controllers.
 
 ### Summary table
 
@@ -150,7 +152,7 @@ The backend demonstrates seven Gang-of-Four design patterns (Gamma et al., 1994)
 | 1 | **Singleton** | `patterns/singleton/DatabaseConnection.js` | Guarantees a single shared MongoDB connection across the app lifecycle | Opening a new Mongoose connection per request would exhaust the Atlas connection pool; a singleton ensures `getInstance()` always returns the same connection object |
 | 2 | **Factory** | `patterns/factory/UserFactory.js` | `UserFactory.createUser()` builds an `AdminUser` or `StudentUser` from a `role` string | Decouples callers from concrete classes — controllers ask for "a user with this role" instead of branching on `if (role === 'admin')` everywhere |
 | 3 | **Strategy** | `patterns/strategy/CourseSortStrategy.js` | Four interchangeable sort algorithms (title, capacity, enrolled, availability) selected via `?sortBy=` | New sort criteria can be added as a new class without touching `CourseSorter` or the controller (Open/Closed Principle) |
-| 4 | **Observer** | `patterns/observer/EnrollmentEventEmitter.js` | Broadcasts `enrollment:created`, `enrollment:dropped`, `course:full` events to independent subscribers (audit log, simulated email notifier, capacity alert) | Keeps the enrolment logic free of side-effect code — notification/logging concerns can be added or removed without editing the facade |
+| 4 | **Observer** | `patterns/observer/EnrollmentEventEmitter.js` | Broadcasts `enrollment:created`, `enrollment:dropped`, `course:full` events to independent subscribers (audit log, simulated email notifier, capacity alert), built on Node's `EventEmitter` (Node.js, 2024) | Keeps the enrolment logic free of side-effect code — notification/logging concerns can be added or removed without editing the facade |
 | 5 | **Facade** | `patterns/facade/RegistrationFacade.js` | Single `enrollStudent()` / `dropStudent()` entry point that internally orchestrates course lookup, capacity check, duplicate check, enrolment write, counter update, and Observer event | Hides a 5–6 step workflow spanning two models and the Observer behind one call, so `enrollmentController.js` stays thin |
 | 6 | **Chain of Responsibility** | `patterns/chain/RequestChain.js` | `LoggingHandler → SanitizationHandler → (Express)` request pipeline, with a `ValidationHandler` available to short-circuit on missing fields | Each concern (logging, sanitisation, validation) is an independent, swappable link; adding a new pre-processing step needs no change to existing handlers |
 | 7 | **Proxy** | `patterns/proxy/CourseServiceProxy.js` | Wraps the real `CourseService` to enforce admin-only mutations and write an audit log before delegating | Controllers only ever talk to the proxy, so access control and auditing cannot be bypassed by calling the real service directly |
@@ -159,7 +161,7 @@ The backend demonstrates seven Gang-of-Four design patterns (Gamma et al., 1994)
 
 | Principle | Where it's demonstrated |
 |---|---|
-| **Encapsulation** | `BaseUser.js` uses a true private field (`#role`) so role cannot be reassigned from outside the class; `DatabaseConnection._connection` and `RegistrationFacade`'s `_findCourse`/`_checkCapacity` helpers are private-by-convention |
+| **Encapsulation** | `BaseUser.js` uses a true private field (`#role`) (MDN Web Docs, 2024) so role cannot be reassigned from outside the class; `DatabaseConnection._connection` and `RegistrationFacade`'s `_findCourse`/`_checkCapacity` helpers are private-by-convention |
 | **Inheritance** | `AdminUser extends BaseUser` and `StudentUser extends BaseUser` (`backend/oop/`); `LoggingHandler`, `SanitizationHandler`, and `ValidationHandler` all extend `RequestHandler` |
 | **Polymorphism** | `getPermissions()` and `describe()` are overridden differently by `AdminUser` and `StudentUser`; all four `SortStrategy` subclasses share the `sort()` method signature but execute different algorithms; `StudentUser.trackEnrollment()` simulates method overloading by branching on argument type, since JavaScript has no native overloading |
 | **Abstraction** | `BaseUser.getPermissions()` and `SortStrategy.sort()` throw if not overridden, defining a contract concrete subclasses must fulfil |
@@ -306,8 +308,8 @@ The backend has **two complementary test suites**, run separately:
 
 | Suite | Location | Command | Count | Needs MongoDB? | What it tests |
 |---|---|---|---|---|---|
-| **Unit** | `backend/test/unit/` | `npm run test:unit` | 72 | No | Each OOP / design-pattern class in isolation. DB collaborators (Course, Enrollment, CourseService) are replaced with **Sinon stubs**, so the tests are fast, deterministic, and run offline. |
-| **Integration** | `backend/test/sample.test.js` | `npm test` | 32 | Yes | Real HTTP requests fired with chai-http through the full Express stack (routes → middleware → controllers → models) against a live MongoDB Atlas connection. |
+| **Unit** | `backend/test/unit/` | `npm run test:unit` | 72 | No | Each OOP / design-pattern class in isolation. DB collaborators (Course, Enrollment, CourseService) are replaced with **Sinon stubs** (Sinon.JS, 2024), so the tests are fast, deterministic, and run offline. |
+| **Integration** | `backend/test/sample.test.js` | `npm test` | 32 | Yes | Real HTTP requests fired with chai-http (Chai, 2024) through the full Express stack (routes → middleware → controllers → models) against a live MongoDB Atlas connection. Both suites run on Mocha (Mocha, 2024). |
 
 Unit-test `describe` blocks are all prefixed with `UNIT:` so they are easy to identify in the reporter output.
 
@@ -469,7 +471,7 @@ the reporter stays readable.
 
 ## CI/CD Pipeline
 
-The deployment pipeline is defined in `.github/workflows/deploy.yml` and runs automatically on every push to the `main` branch. Three sequential jobs enforce a test-before-deploy discipline:
+The deployment pipeline is defined in `.github/workflows/deploy.yml` and runs automatically on every push to the `main` branch using GitHub Actions (GitHub Docs, 2024). Three sequential jobs enforce a test-before-deploy discipline:
 
 ```
 push to main
@@ -532,7 +534,7 @@ sudo ./svc.sh start
 
 ## Production Deployment
 
-The application runs on AWS EC2 (Ubuntu 22.04) with the following infrastructure:
+The application runs on AWS EC2 (Amazon Web Services, 2024) (Ubuntu 22.04), with the backend kept alive by PM2 (PM2, 2024) and static assets served by Nginx (Nginx, 2024). The infrastructure breaks down as follows:
 
 | Component | Tool | Details |
 |---|---|---|
@@ -583,17 +585,19 @@ The MERN stack proved to be a productive choice for this project. The shared use
 
 The CI/CD pipeline was the most rewarding component to build. The decision to use a self-hosted GitHub Actions runner on the EC2 instance — rather than SSH-based deployment — turned out to be significantly simpler to maintain as it was easier to run the CI/CD pipeline once the ec2 instace was made the runner and deployment system. There are no key pairs to rotate, no deployment secrets beyond the two already needed for the application, and the runner executes commands with direct filesystem access exactly as a developer would on the server. Watching a `git push` automatically test, build, and deploy the full application in under two minutes made the operational value of continuous deployment tangible in a way that reading about it does not.
 
-Planning the project through JIRA sprints also added genuine structure. Writing user stories before opening the code editor forced a clear articulation of what each feature needed to achieve from the user's perspective, which kept the implementation focused. The sprint backlog made it easy to identify when scope creep was occurring and defer non-essential features to a later sprint.
+Planning the project through JIRA sprints (Atlassian, 2024) also added genuine structure. Writing user stories before opening the code editor forced a clear articulation of what each feature needed to achieve from the user's perspective, which kept the implementation focused. The sprint backlog made it easy to identify when scope creep was occurring and defer non-essential features to a later sprint.
 
 Retrofitting seven design patterns onto a working application — rather than designing them in from a blank file — turned out to be a useful constraint. It forced each pattern to justify its own existence: the Facade only earned its place because `enrollmentController.js` was genuinely coordinating five separate steps across two models and an event emitter, and the Proxy only made sense because admin-only mutation checks and audit logging were two cross-cutting concerns that kept getting duplicated across `courseController.js`. Patterns that didn't map onto an existing pain point (an early attempt at a Decorator around course pricing, for example) were dropped rather than forced in for the sake of the requirement.
 
 ### Challenges and how they were resolved
 
-The most significant technical challenge was configuring MongoDB Atlas network access for the CI/CD pipeline. GitHub Actions runners use dynamic IP addresses that change on every run, so the Atlas default whitelist — which restricts connections to specific IPs — caused the test job's `before` hook to hang until Mocha's 20-second timeout killed it with zero tests run. The fix required two changes: opening Atlas network access to `0.0.0.0/0` (all IPs) for the test cluster, and adding `serverSelectionTimeoutMS: 10000` to the Mongoose connection options so that future connection failures produce a clear, immediate error rather than a silent hang.
+The most significant technical challenge was configuring MongoDB Atlas (MongoDB, 2024) network access for the CI/CD pipeline. GitHub Actions runners use dynamic IP addresses that change on every run, so the Atlas default whitelist — which restricts connections to specific IPs — caused the test job's `before` hook to hang until Mocha's 20-second timeout killed it with zero tests run. The fix required two changes: opening Atlas network access to `0.0.0.0/0` (all IPs) for the test cluster, and adding `serverSelectionTimeoutMS: 10000` to the Mongoose connection options so that future connection failures produce a clear, immediate error rather than a silent hang.
 
-A second, more conceptual challenge was deciding where the OOP domain layer (`backend/oop/`) should sit relative to the existing Mongoose models. The natural instinct was to make `AdminUser`/`StudentUser` extend the Mongoose `User` model directly, but Mongoose documents are not well suited to being subclassed — schema methods and document hydration conflict with custom constructors. The resolution was to treat `BaseUser` and its subclasses as plain in-memory domain objects, built from already-persisted Mongoose data via `UserFactory`, rather than as persistence objects themselves. This kept the OOP hierarchy clean (true private fields, method overriding, polymorphic `getPermissions()`) without fighting Mongoose's own object model. The trade-off is that the two representations of "a user" (Mongoose document vs. domain object) must be kept conceptually distinct, which is documented in the JSDoc headers of each file so the boundary is explicit rather than implicit.
+A second, more conceptual challenge was deciding where the OOP domain layer (`backend/oop/`) should sit relative to the existing Mongoose models. The natural instinct was to make `AdminUser`/`StudentUser` extend the Mongoose `User` model directly, but Mongoose documents are not well suited to being subclassed (Mongoose, 2024) — schema methods and document hydration conflict with custom constructors. The resolution was to treat `BaseUser` and its subclasses as plain in-memory domain objects, built from already-persisted Mongoose data via `UserFactory`, rather than as persistence objects themselves. This kept the OOP hierarchy clean (true private fields, method overriding, polymorphic `getPermissions()`) without fighting Mongoose's own object model. The trade-off is that the two representations of "a user" (Mongoose document vs. domain object) must be kept conceptually distinct, which is documented in the JSDoc headers of each file so the boundary is explicit rather than implicit.
 
 A smaller but instructive issue surfaced once the Chain of Responsibility was wired into `server.js`: the `SanitizationHandler` ran before Express's JSON body-parser middleware in an early draft, so `req.body` was still `undefined` when the handler tried to trim string fields. This was a useful reminder that Chain of Responsibility only solves *ordering between the handlers you control* — it does not protect against ordering mistakes relative to middleware registered outside the chain. Reordering `app.use()` so the body-parser ran first resolved it.
+
+Extending the test coverage raised a different kind of challenge. The original suite (`sample.test.js`) was entirely integration-level — every test fired real HTTP requests against a live MongoDB Atlas connection — which meant the OOP domain classes and the seven design patterns had no *isolated* tests of their own, and the suite could not run at all without database credentials. Adding a dedicated unit suite (`backend/test/unit/`, 72 tests) forced a clear decision about the unit/integration boundary: the pure classes (Factory, Strategy, the OOP hierarchy, the Chain handlers) test trivially, but the Facade and Proxy each depend on the Mongoose models, so testing them *as units* meant replacing those collaborators with Sinon stubs (Sinon.JS, 2024) rather than touching the database. This made explicit something the integration tests had blurred — that a "unit" test of the Facade should verify its *orchestration logic* (does it check capacity before creating an enrolment, does it fire the right Observer event) independently of whether Mongoose actually persists anything. A subtle trap appeared with the Observer: because `EnrollmentEventEmitter` is exported as a shared singleton, spy subscribers added in one test leaked into the next until each test's `afterEach` explicitly called `unsubscribe()`. Finally, wiring the two suites into CI cleanly required scoping the default `.mocharc.yml` to `test/*.test.js` and giving the unit suite its own `.mocharc.unit.yml`, so `npm test` and `npm run test:unit` stay disjoint and the pipeline reports unit and integration results as separate steps. The broader lesson was that unit and integration tests answer different questions — "is this class correct in isolation?" versus "do the pieces work together against a real database?" — and a mature suite needs both rather than treating one as a substitute for the other.
 
 ### What I would do differently
 
@@ -601,7 +605,7 @@ With additional time I would invest more effort in the Figma prototype before be
 
 ### Collaboration and tool use
 
-Claude (Anthropic, 2026) was used throughout this assignment as a collaborative coding and debugging assistant, in line with the unit's permitted use of AI tools. Specific uses included: debugging the bcrypt pre-save hook hang and the React auth-state persistence issue; reviewing the seven design-pattern implementations against their canonical definitions for correctness; generating the SysML diagrams, Postman collection, and this README's structure; and proofreading the Reflection section above for clarity. All architectural decisions, the choice of which seven patterns to implement and where, and the final code were reviewed and understood before submission. No AI-generated content was submitted without being read, tested, and, where necessary, corrected.
+Claude (Anthropic, 2026) was used throughout this assignment as a collaborative coding and debugging assistant, in line with the unit's permitted use of AI tools. Specific uses included: debugging the bcrypt pre-save hook hang and the React auth-state persistence issue; reviewing the seven design-pattern implementations against their canonical definitions for correctness; generating the SysML diagrams (Object Management Group, 2019), Postman collection, and this README's structure; and proofreading the Reflection section above for clarity. The project's overall design-science framing follows Wieringa (2014). All architectural decisions, the choice of which seven patterns to implement and where, and the final code were reviewed and understood before submission. No AI-generated content was submitted without being read, tested, and, where necessary, corrected.
 
 ---
 
@@ -621,11 +625,12 @@ Claude (Anthropic, 2026) was used throughout this assignment as a collaborative 
 - Mongoose. (2024). *Mongoose v6 documentation — getting started*. https://mongoosejs.com/docs/guide.html
 - Nginx. (2024). *Beginner's guide to Nginx*. https://nginx.org/en/docs/beginners_guide.html
 - Node.js. (2024). *Events — EventEmitter class*. OpenJS Foundation. https://nodejs.org/api/events.html
-- npm. (2024). *bcrypt package*. https://www.npmjs.com/package/bcrypt
-- npm. (2024). *jsonwebtoken package*. https://www.npmjs.com/package/jsonwebtoken
+- npm. (2024a). *bcrypt package*. https://www.npmjs.com/package/bcrypt
+- npm. (2024b). *jsonwebtoken package*. https://www.npmjs.com/package/jsonwebtoken
 - Object Management Group. (2019). *OMG Systems Modeling Language (OMG SysML™) v1.6*. https://www.omg.org/spec/SysML/1.6/PDF
 - PM2. (2024). *PM2 — advanced process manager for Node.js*. https://pm2.keymetrics.io/docs/usage/quick-start/
 - React. (2024). *React documentation — learn React*. https://react.dev/learn
 - Refactoring Guru. (2024). *Design patterns*. https://refactoring.guru/design-patterns
+- Sinon.JS. (2024). *Standalone test spies, stubs and mocks for JavaScript*. https://sinonjs.org/
 - Tailwind Labs. (2024). *Tailwind CSS documentation*. https://tailwindcss.com/docs
 - Wieringa, R. J. (2014). *Design science methodology for information systems and software engineering*. Springer.
