@@ -53,7 +53,7 @@ A full-stack course registration platform built on the MERN stack (MongoDB, Expr
 | Backend | Node.js + Express.js | Express 4.17 |
 | Database | MongoDB Atlas | Mongoose 6 |
 | Authentication | JWT + bcrypt | jsonwebtoken 9 |
-| Testing | Mocha + Chai + chai-http | Mocha 11 |
+| Testing | Mocha + Chai + chai-http + Sinon | Mocha 11 |
 | Process Manager | PM2 | Latest |
 | Web Server | Nginx | Latest |
 | CI/CD | GitHub Actions (self-hosted runner) | — |
@@ -105,8 +105,19 @@ assignment-1-IFQ636/
 │   │   ├── courseRoutes.js         # /api/courses (write routes protected by JWT)
 │   │   └── enrollmentRoutes.js     # /api/enrollments (all protected by JWT)
 │   ├── test/
-│   │   └── sample.test.js          # 32 Mocha/Chai integration tests
-│   ├── .mocharc.yml                # Mocha config (timeout, exit)
+│   │   ├── sample.test.js          # 32 integration tests (real HTTP + live MongoDB)
+│   │   └── unit/                   # 72 isolated unit tests (no DB — Sinon stubs)
+│   │       ├── oop.test.js                    # BaseUser / AdminUser / StudentUser
+│   │       ├── userFactory.test.js            # Factory pattern
+│   │       ├── courseSortStrategy.test.js     # Strategy pattern
+│   │       ├── enrollmentEventEmitter.test.js # Observer pattern
+│   │       ├── requestChain.test.js           # Chain of Responsibility pattern
+│   │       ├── registrationFacade.test.js     # Facade pattern (models stubbed)
+│   │       ├── courseServiceProxy.test.js     # Proxy pattern (service stubbed)
+│   │       ├── _setup.js                       # silences class console output
+│   │       └── README.md                       # how to run the unit suite
+│   ├── .mocharc.yml                # Mocha config for the integration suite
+│   ├── .mocharc.unit.yml           # Mocha config for the unit suite
 │   ├── server.js                   # Express app; exports for testing, listens when run directly
 │   └── package.json
 ├── frontend/
@@ -226,6 +237,10 @@ Uses `concurrently` to start both the backend (nodemon, auto-reload) and the fro
 ### 6. Run tests
 
 ```bash
+# Unit tests — isolated, no database required
+npm run test:unit --prefix backend
+
+# Integration tests — needs a live MONGO_URI in backend/.env
 npm test --prefix backend
 ```
 
@@ -287,9 +302,95 @@ All protected endpoints require an `Authorization: Bearer <token>` header.
 
 ## Testing
 
-The test suite is in `backend/test/sample.test.js` and uses Mocha + Chai + chai-http to fire real HTTP requests against the Express app connected to MongoDB Atlas.
+The backend has **two complementary test suites**, run separately:
 
-### Test case table (32 tests)
+| Suite | Location | Command | Count | Needs MongoDB? | What it tests |
+|---|---|---|---|---|---|
+| **Unit** | `backend/test/unit/` | `npm run test:unit` | 72 | No | Each OOP / design-pattern class in isolation. DB collaborators (Course, Enrollment, CourseService) are replaced with **Sinon stubs**, so the tests are fast, deterministic, and run offline. |
+| **Integration** | `backend/test/sample.test.js` | `npm test` | 32 | Yes | Real HTTP requests fired with chai-http through the full Express stack (routes → middleware → controllers → models) against a live MongoDB Atlas connection. |
+
+Unit-test `describe` blocks are all prefixed with `UNIT:` so they are easy to identify in the reporter output.
+
+### Unit test cases (72 tests)
+
+Pure, isolated tests — no network, no database. Every one passes.
+
+| ID | Suite | Description | Verifies |
+|---|---|---|---|
+| UT-01 | BaseUser | assigns constructor fields correctly | Construction |
+| UT-02 | BaseUser | defaults university to null when not supplied | Construction |
+| UT-03 | BaseUser | exposes role only through a read-only getter | Encapsulation (`#role`) |
+| UT-04 | BaseUser | throws when getPermissions() is called on the abstract base | Abstraction |
+| UT-05 | BaseUser | describe() returns a readable base description | Behaviour |
+| UT-06 | BaseUser | toJSON() omits any password field and includes role | Safe serialisation |
+| UT-07 | AdminUser | is an instance of BaseUser | Inheritance |
+| UT-08 | AdminUser | forces the role to "admin" regardless of input | Encapsulation |
+| UT-09 | AdminUser | overrides getPermissions() with the full admin set | Polymorphism |
+| UT-10 | AdminUser | inherits hasPermission() and evaluates against admin perms | Inheritance |
+| UT-11 | AdminUser | overrides describe() with an admin-specific string | Polymorphism |
+| UT-12 | AdminUser | isSuperAdmin() reflects the admin level (default false) | Behaviour |
+| UT-13 | StudentUser | is an instance of BaseUser | Inheritance |
+| UT-14 | StudentUser | forces the role to "student" | Encapsulation |
+| UT-15 | StudentUser | overrides getPermissions() with the restricted set | Polymorphism |
+| UT-16 | StudentUser | starts with zero tracked enrollments | State |
+| UT-17 | StudentUser | trackEnrollment() accepts a single course id | Overloading (overload 1) |
+| UT-18 | StudentUser | trackEnrollment() accepts an array of course ids | Overloading (overload 2) |
+| UT-19 | StudentUser | trackEnrollment() throws a TypeError on bad input | Input validation |
+| UT-20 | StudentUser | getEnrolledCourseIds() returns a copy, not the internal array | Encapsulation |
+| UT-21 | StudentUser | describe() reflects the current enrollment count | Behaviour |
+| UT-22 | UserFactory | creates an AdminUser when role is "admin" | Factory |
+| UT-23 | UserFactory | creates a StudentUser when role is "student" | Factory |
+| UT-24 | UserFactory | falls back to StudentUser for an unknown role | Safe default |
+| UT-25 | UserFactory | falls back to StudentUser when role is missing | Safe default |
+| UT-26 | UserFactory | produced objects honour the shared BaseUser interface | Polymorphism |
+| UT-27 | SortStrategy | throws if sort() is called on the un-overridden base | Abstraction |
+| UT-28 | Strategy | SortByTitle sorts alphabetically, case-insensitively | Strategy |
+| UT-29 | Strategy | SortByCapacity sorts by capacity descending | Strategy |
+| UT-30 | Strategy | SortByEnrolled sorts by enrolled count descending | Strategy |
+| UT-31 | Strategy | SortByAvailability sorts by free seats descending | Strategy |
+| UT-32 | Strategy | does not mutate the original array | Immutability |
+| UT-33 | CourseSorter | delegates sorting to the strategy from the constructor | Strategy context |
+| UT-34 | CourseSorter | setStrategy() swaps the algorithm at runtime | Strategy context |
+| UT-35 | getStrategy | maps "capacity" to SortByCapacity | Resolver |
+| UT-36 | getStrategy | maps "enrolled" to SortByEnrolled | Resolver |
+| UT-37 | getStrategy | maps "availability" to SortByAvailability | Resolver |
+| UT-38 | getStrategy | maps "title" to SortByTitle | Resolver |
+| UT-39 | getStrategy | defaults to SortByTitle for an unknown value | Resolver default |
+| UT-40 | Observer | notifyEnrollment() delivers the payload to a subscriber | Observer |
+| UT-41 | Observer | notifyDropped() delivers the payload to a subscriber | Observer |
+| UT-42 | Observer | notifyCourseFull() delivers the payload to a subscriber | Observer |
+| UT-43 | Observer | supports multiple observers for the same event | One-to-many broadcast |
+| UT-44 | Observer | unsubscribe() stops further events reaching an observer | Observer |
+| UT-45 | LoggingHandler | always passes the request to next() when last | Chain |
+| UT-46 | SanitizationHandler | trims whitespace from string body fields | Chain |
+| UT-47 | SanitizationHandler | leaves non-string body fields untouched | Chain |
+| UT-48 | ValidationHandler | short-circuits with 400 when a required field is missing | Chain short-circuit |
+| UT-49 | ValidationHandler | passes through when all required fields are present | Chain |
+| UT-50 | ValidationHandler | skips validation for GET requests | Chain |
+| UT-51 | buildChain | throws when given an empty handler list | Guard |
+| UT-52 | buildChain | links handlers so the request flows through every link | Chain wiring |
+| UT-53 | buildChain | short-circuits the whole chain when validation fails | Chain short-circuit |
+| UT-54 | Facade.enroll | runs the full happy-path workflow and returns the enrollment | Facade orchestration |
+| UT-55 | Facade.enroll | throws 404 when the course does not exist | Error branch |
+| UT-56 | Facade.enroll | throws 400 "Course is full" and creates nothing | Capacity branch |
+| UT-57 | Facade.enroll | throws 400 when the student is already enrolled | Duplicate branch |
+| UT-58 | Facade.drop | deletes, decrements the counter, fires the drop event | Facade orchestration |
+| UT-59 | Facade.drop | throws 404 when the enrollment is not found | Error branch |
+| UT-60 | Facade.drop | never lets the enrolled counter go below zero | Boundary |
+| UT-61 | Proxy.create | delegates to the real service for an admin | Proxy delegation |
+| UT-62 | Proxy.create | throws 403 for a student and never touches the service | Access control |
+| UT-63 | Proxy.create | throws 403 when no user is supplied (guest) | Access control |
+| UT-64 | Proxy.findAll | returns all courses without requiring a user | Public read |
+| UT-65 | Proxy.findById | returns the course when it exists | Public read |
+| UT-66 | Proxy.findById | throws 404 when the course does not exist | Error branch |
+| UT-67 | Proxy.update | delegates to the real service for an admin | Proxy delegation |
+| UT-68 | Proxy.update | throws 403 for a non-admin | Access control |
+| UT-69 | Proxy.update | throws 404 when the course to update is not found | Error branch |
+| UT-70 | Proxy.delete | delegates to the real service for an admin | Proxy delegation |
+| UT-71 | Proxy.delete | throws 403 for a non-admin | Access control |
+| UT-72 | Proxy.delete | throws 404 when the course to delete is not found | Error branch |
+
+### Integration test cases (32 tests)
 
 Test 32 is an **intentional failure** kept in the suite on purpose, to demonstrate that the suite actually catches incorrect behaviour rather than passing trivially.
 
@@ -332,18 +433,37 @@ Test 32 is an **intentional failure** kept in the suite on purpose, to demonstra
 
 ```bash
 cd backend
-npm test
+npm install
+
+npm run test:unit   # 72 unit tests — no database needed
+npm test            # 32 integration tests — needs MONGO_URI in .env
 ```
 
-### Test configuration (`backend/.mocharc.yml`)
+### Test configuration
+
+Two Mocha config files keep the suites cleanly separated:
+
+**`backend/.mocharc.yml`** — integration suite (used by `npm test`):
 
 ```yaml
-spec: 'test/**/*.test.js'
-timeout: 20000
+spec: 'test/*.test.js'   # top-level integration file only (excludes test/unit/)
+timeout: 15000
 exit: true
 ```
 
-The 20-second timeout accommodates MongoDB Atlas network round-trips. The `exit: true` flag ensures the process terminates cleanly after all tests complete.
+**`backend/.mocharc.unit.yml`** — unit suite (used by `npm run test:unit`):
+
+```yaml
+spec: 'test/unit/**/*.test.js'
+require: './test/unit/_setup.js'
+timeout: 5000
+exit: true
+```
+
+The integration `spec` is scoped to `test/*.test.js` (non-recursive) so the unit
+tests under `test/unit/` are not swept into the DB-dependent run. The unit config
+loads `_setup.js`, which silences the classes' diagnostic `console.log` output so
+the reporter stays readable.
 
 ---
 
@@ -359,8 +479,9 @@ push to main
 │  Job 1      │  test
 │  Run tests  │  runs-on: ubuntu-latest
 │  (backend)  │  → npm install --prefix backend
-└──────┬──────┘  → npm test --prefix backend
-       │         (uses MONGO_URI + JWT_SECRET from GitHub Secrets)
+│             │  → npm run test:unit --prefix backend   (72 unit tests, no DB)
+└──────┬──────┘  → npm test --prefix backend            (32 integration tests)
+       │         (integration step uses MONGO_URI + JWT_SECRET from GitHub Secrets)
        ▼
 ┌──────────────────┐
 │  Job 2           │  build-frontend
