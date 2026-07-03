@@ -5,6 +5,7 @@
   "main": "server.js",
   "scripts": {
     "test": "mocha",
+    "test:unit": "mocha --config .mocharc.unit.yml",
     "start": "node server.js",
     "dev": "nodemon server.js",
     "prod": "node server.js"
