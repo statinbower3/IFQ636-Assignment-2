@@ -1,3 +1,7 @@
-spec: 'test/**/*.test.js'
+# Integration suite only. The recursive '**' glob previously also pulled in
+# test/unit/**, mixing unit and integration tests into one run. Scoping this to
+# the top-level test/ folder means `npm test` runs the integration suite, while
+# `npm run test:unit` (see .mocharc.unit.yml) runs the isolated unit suite.
+spec: 'test/*.test.js'
 timeout: 15000
 exit: true

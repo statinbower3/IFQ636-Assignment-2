@@ -20,7 +20,16 @@ jobs:
       - name: Install backend dependencies
         run: npm install --prefix backend
 
-      - name: Run backend tests
+      # Unit tests: fully isolated (Sinon-stubbed models), no MongoDB needed.
+      # These are deterministic, so a failure here should fail the build.
+      - name: Run backend unit tests
+        run: npm run test:unit --prefix backend
+
+      # Integration tests: fire real HTTP requests against the Express app and a
+      # live MongoDB Atlas connection. Kept as continue-on-error because the
+      # suite intentionally includes one failing assertion (TC-32) to prove the
+      # tests catch incorrect behaviour.
+      - name: Run backend integration tests
         run: npm test --prefix backend
         continue-on-error: true
         env:
