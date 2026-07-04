@@ -1,7 +1,12 @@
-# Mocha config for the UNIT test suite ONLY.
+# Mocha config for the gated UNIT test suite.
 # Runs the isolated, no-database unit tests under test/unit/.
 # Use via:  npm run test:unit
+#
+# The intentional-failure demo (test/unit/intentionalFailure.test.js) is
+# excluded here so this suite stays 100% green as a CI gate. Those deliberate
+# failures are run separately via `npm run test:unit:demo` (.mocharc.unit-demo.yml).
 spec: 'test/unit/**/*.test.js'
+ignore: 'test/unit/intentionalFailure.test.js'
 require: './test/unit/_setup.js'
 timeout: 5000
 exit: true

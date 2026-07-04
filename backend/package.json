@@ -6,6 +6,7 @@
   "scripts": {
     "test": "mocha",
     "test:unit": "mocha --config .mocharc.unit.yml",
+    "test:unit:demo": "mocha --config .mocharc.unit-demo.yml",
     "start": "node server.js",
     "dev": "nodemon server.js",
     "prod": "node server.js"

@@ -13,16 +13,22 @@ MongoDB Atlas connection.
 ## Running
 
 ```bash
-# unit tests only — no MONGO_URI or network needed
+# gated unit tests only — no MONGO_URI or network needed (all 72 pass)
 npm run test:unit
+
+# intentional-failure demo — 3 tests designed to fail, proving the suite
+# catches regressions (the unit counterpart to integration TC-32)
+npm run test:unit:demo
 
 # original integration suite (needs MONGO_URI / live DB)
 npm test
 ```
 
 `npm run test:unit` uses `.mocharc.unit.yml`, which limits the run to
-`test/unit/**/*.test.js` and loads `test/unit/_setup.js` (which silences the
-classes' diagnostic `console.log` output for readable results).
+`test/unit/**/*.test.js`, `ignore`s `intentionalFailure.test.js` (so the gated
+suite stays green), and loads `test/unit/_setup.js` (which silences the classes'
+diagnostic `console.log` output for readable results). `npm run test:unit:demo`
+uses `.mocharc.unit-demo.yml` to run only the intentional-failure file.
 
 ## What is covered
 
@@ -35,8 +41,9 @@ classes' diagnostic `console.log` output for readable results).
 | `requestChain.test.js`            | Logging/Sanitization/Validation handlers | Chain of Responsibility |
 | `registrationFacade.test.js`      | RegistrationFacade         | Facade (models stubbed)        |
 | `courseServiceProxy.test.js`      | CourseServiceProxy         | Proxy (real service stubbed)   |
+| `intentionalFailure.test.js`      | Factory / Strategy / StudentUser | Designed-to-fail demo (run via `test:unit:demo`) |
 
-72 test cases in total.
+72 gated test cases (all passing), plus 3 intentional-failure demo cases.
 
 ## Dependencies
 
