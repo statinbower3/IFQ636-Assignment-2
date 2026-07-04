@@ -1,22 +1,47 @@
+/**
+ * @file AdminPanel.jsx
+ * @description Admin-only dashboard: create/edit/delete courses and view all
+ *              courses and all enrolments.
+ *
+ * ACCESS: App.js only mounts this route for users with role 'admin' (redirecting
+ * others to /courses). The backend independently enforces admin access on the
+ * write endpoints via the Proxy pattern + adminOnly middleware, so the UI guard
+ * is convenience only, not the security boundary.
+ *
+ * SECTIONS:
+ *   1. Course form   — create (POST /api/courses) or edit (PUT /api/courses/:id).
+ *   2. All courses   — table with Edit/Delete (DELETE cascades enrolments backend-side).
+ *   3. All enrolments — read-only table (GET /api/enrollments/all).
+ * All write/admin calls send the Bearer token from AuthContext.
+ */
+
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import axiosInstance from '../axiosConfig';
 
 const AdminPanel = () => {
   const { user } = useAuth();
-  const [courses, setCourses] = useState([]);
-  const [enrollments, setEnrollments] = useState([]);
-  const [message, setMessage] = useState('');
-  const [editingCourse, setEditingCourse] = useState(null);
+  const [courses, setCourses] = useState([]);          // all courses (table + form target)
+  const [enrollments, setEnrollments] = useState([]);  // all enrolments (read-only table)
+  const [message, setMessage] = useState('');          // status/error banner
+  const [editingCourse, setEditingCourse] = useState(null); // course being edited, or null
+  // Controlled course form. `capacity` is kept as a string here (input value) and
+  // coerced by the backend/Mongoose schema (Number) on save.
   const [formData, setFormData] = useState({
     title: '', description: '', instructor: '', schedule: '', capacity: ''
   });
 
+  // Initial data load. NOTE: a second, identical useEffect exists below — the
+  // two are redundant (both run once on mount, firing the same two fetches
+  // twice). Harmless but wasteful; one of them can be safely removed.
   useEffect(() => {
     fetchCourses();
     fetchEnrollments();
   }, []);
 
+  /**
+   * Loads all courses (public endpoint).
+   */
   const fetchCourses = async () => {
     try {
       const response = await axiosInstance.get('/api/courses');
@@ -26,7 +51,11 @@ const AdminPanel = () => {
     }
   };
 
-  const fetchEnrollments = async () => {   // ✅ plain async function
+  /**
+   * Loads all enrolment records (admin view). Uses optional chaining on the
+   * token so it won't throw if `user` briefly isn't ready.
+   */
+  const fetchEnrollments = async () => {   // plain async function
     try {
       const response = await axiosInstance.get('/api/enrollments/all', {
         headers: { Authorization: `Bearer ${user?.token}` }
@@ -37,11 +66,19 @@ const AdminPanel = () => {
     }
   };
 
+  // Redundant duplicate of the mount effect above (see note). Kept as-is to
+  // preserve existing behaviour; consider deleting one of the two.
   useEffect(() => {
     fetchCourses();
     fetchEnrollments();
   }, []); 
 
+  /**
+   * Submits the course form. Updates an existing course when `editingCourse` is
+   * set (PUT), otherwise creates a new one (POST). Resets the form and reloads
+   * the course list on success.
+   * @param {React.FormEvent} e
+   */
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -56,6 +93,7 @@ const AdminPanel = () => {
         });
         setMessage('Course created successfully!');
       }
+      // Clear the form + exit edit mode, then refresh the table.
       setFormData({ title: '', description: '', instructor: '', schedule: '', capacity: '' });
       setEditingCourse(null);
       fetchCourses();
@@ -64,6 +102,10 @@ const AdminPanel = () => {
     }
   };
 
+  /**
+   * Enters edit mode: remembers the course and pre-fills the form from it.
+   * @param {Object} course
+   */
   const handleEdit = (course) => {
     setEditingCourse(course);
     setFormData({
@@ -75,6 +117,11 @@ const AdminPanel = () => {
     });
   };
 
+  /**
+   * Deletes a course after a confirm() prompt, then refreshes the list.
+   * Backend cascades the delete to the course's enrolment records.
+   * @param {string} courseId
+   */
   const handleDelete = async (courseId) => {
     if (!window.confirm('Are you sure you want to delete this course?')) return;
     try {
@@ -95,12 +142,13 @@ const AdminPanel = () => {
         <div className="bg-blue-100 text-blue-800 p-3 rounded mb-4">{message}</div>
       )}
 
-      {/* Course Form */}
+      {/* ── Section 1: Course create/edit form ── */}
       <div className="bg-white shadow-md rounded-lg p-6 mb-8">
         <h2 className="text-2xl font-bold mb-4">
           {editingCourse ? 'Edit Course' : 'Create New Course'}
         </h2>
         <form onSubmit={handleSubmit}>
+          {/* All fields are controlled + required (HTML5 validation). */}
           <input
             type="text"
             placeholder="Course Title"
@@ -148,6 +196,7 @@ const AdminPanel = () => {
             >
               {editingCourse ? 'Update Course' : 'Create Course'}
             </button>
+            {/* Cancel only appears in edit mode: clears the form + exits edit mode. */}
             {editingCourse && (
               <button
                 type="button"
@@ -161,7 +210,7 @@ const AdminPanel = () => {
         </form>
       </div>
 
-      {/* Course List */}
+      {/* ── Section 2: All courses table with row actions ── */}
       <div className="bg-white shadow-md rounded-lg p-6 mb-8">
         <h2 className="text-2xl font-bold mb-4">All Courses</h2>
         <table className="w-full text-left">
@@ -201,7 +250,7 @@ const AdminPanel = () => {
         </table>
       </div>
 
-      {/* Enrollments */}
+      {/* ── Section 3: All enrolments (read-only) ── */}
       <div className="bg-white shadow-md rounded-lg p-6">
         <h2 className="text-2xl font-bold mb-4">All Enrollments</h2>
         <table className="w-full text-left">
@@ -214,6 +263,8 @@ const AdminPanel = () => {
             </tr>
           </thead>
           <tbody>
+            {/* student/course are populated sub-docs; optional chaining guards any
+                enrolment whose referenced doc was removed. */}
             {enrollments.map((enrollment) => (
               <tr key={enrollment._id} className="border-t">
                 <td className="p-3">{enrollment.student?.name}</td>
