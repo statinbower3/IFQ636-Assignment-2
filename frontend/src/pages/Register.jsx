@@ -1,11 +1,26 @@
+/**
+ * @file Register.jsx
+ * @description Registration page — creates a new (student) account.
+ *
+ * FLOW: submit → POST /api/auth/register → on success alert + redirect to /login.
+ * New accounts default to the 'student' role on the backend; the password is
+ * bcrypt-hashed by a Mongoose pre-save hook (see backend/models/User.js).
+ * Note: registration does NOT auto-login — the user is sent to the login page.
+ */
+
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axiosInstance from '../axiosConfig';
 
 const Register = () => {
+  // Controlled form state for the sign-up fields.
   const [formData, setFormData] = useState({ name: '', email: '', password: '' });
   const navigate = useNavigate();
 
+  /**
+   * Creates the account, then redirects to the login page.
+   * @param {React.FormEvent} e
+   */
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -13,6 +28,7 @@ const Register = () => {
       alert('Registration successful. Please log in.');
       navigate('/login');
     } catch (error) {
+      // Typically a 400 when the email already exists.
       alert('Registration failed. Please try again.');
     }
   };

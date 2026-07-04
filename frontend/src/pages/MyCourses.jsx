@@ -1,12 +1,27 @@
+/**
+ * @file MyCourses.jsx
+ * @description Shows the courses the logged-in student is enrolled in, with a Drop action.
+ *
+ * FLOW:
+ *   - On mount / user change → GET /api/enrollments/my (authenticated). The
+ *     backend populates each enrollment's `course` sub-document so titles,
+ *     instructor, etc. are available directly.
+ *   - Drop → DELETE /api/enrollments/:courseId, then remove the dropped
+ *     enrolment from local state (optimistic list update on success).
+ * Backend drop is handled by RegistrationFacade (decrements the seat counter and
+ * fires the Observer 'enrollment:dropped' event).
+ */
+
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import axiosInstance from '../axiosConfig';
 
 const MyCourses = () => {
   const { user } = useAuth();
-  const [enrollments, setEnrollments] = useState([]);
+  const [enrollments, setEnrollments] = useState([]); // populated enrollment records
   const [message, setMessage] = useState('');
 
+  // Load this student's enrolments.
   useEffect(() => {
     const fetchEnrollments = async () => {
       try {
@@ -21,12 +36,17 @@ const MyCourses = () => {
     fetchEnrollments();
   }, [user]);
 
+  /**
+   * Drops a course, then removes its enrolment from the list.
+   * @param {string} courseId
+   */
   const handleDrop = async (courseId) => {
     try {
       await axiosInstance.delete(`/api/enrollments/${courseId}`, {
         headers: { Authorization: `Bearer ${user.token}` }
       });
       setMessage('Course dropped successfully');
+      // Remove the dropped course from local state by its populated course id.
       setEnrollments(enrollments.filter(e => e.course._id !== courseId));
     } catch (error) {
       setMessage('Failed to drop course');
@@ -39,12 +59,14 @@ const MyCourses = () => {
       {message && (
         <div className="bg-blue-100 text-blue-800 p-3 rounded mb-4">{message}</div>
       )}
+      {/* Empty-state message vs. the enrolment grid. */}
       {enrollments.length === 0 ? (
         <p className="text-gray-500">You haven't enrolled in any courses yet.</p>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {enrollments.map((enrollment) => (
             <div key={enrollment._id} className="bg-white shadow-md rounded-lg p-6">
+              {/* Fields come from the populated `course` sub-document. */}
               <h2 className="text-xl font-bold mb-2">{enrollment.course.title}</h2>
               <p className="text-gray-600 mb-2">{enrollment.course.description}</p>
               <p className="text-sm text-gray-500 mb-1">👨‍🏫 {enrollment.course.instructor}</p>
