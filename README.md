@@ -116,10 +116,12 @@ assignment-1-IFQ636/
 │   │       ├── requestChain.test.js           # Chain of Responsibility pattern
 │   │       ├── registrationFacade.test.js     # Facade pattern (models stubbed)
 │   │       ├── courseServiceProxy.test.js     # Proxy pattern (service stubbed)
+│   │       ├── intentionalFailure.test.js     # 3 designed-to-fail tests (demo)
 │   │       ├── _setup.js                       # silences class console output
 │   │       └── README.md                       # how to run the unit suite
 │   ├── .mocharc.yml                # Mocha config for the integration suite
-│   ├── .mocharc.unit.yml           # Mocha config for the unit suite
+│   ├── .mocharc.unit.yml           # Mocha config for the gated unit suite
+│   ├── .mocharc.unit-demo.yml      # Mocha config for the intentional-failure demo
 │   ├── server.js                   # Express app; exports for testing, listens when run directly
 │   └── package.json
 ├── frontend/
@@ -304,11 +306,12 @@ All protected endpoints require an `Authorization: Bearer <token>` header.
 
 ## Testing
 
-The backend has **two complementary test suites**, run separately:
+The backend has **two complementary test suites**, plus a small intentional-failure demo, run separately:
 
 | Suite | Location | Command | Count | Needs MongoDB? | What it tests |
 |---|---|---|---|---|---|
 | **Unit** | `backend/test/unit/` | `npm run test:unit` | 72 | No | Each OOP / design-pattern class in isolation. DB collaborators (Course, Enrollment, CourseService) are replaced with **Sinon stubs** (Sinon.JS, 2024), so the tests are fast, deterministic, and run offline. |
+| **Unit failure demo** | `backend/test/unit/intentionalFailure.test.js` | `npm run test:unit:demo` | 3 | No | Three tests **designed to fail** — the unit-suite counterpart to the integration suite's TC-32. They prove the unit tests catch incorrect behaviour rather than passing trivially. Excluded from the gated `npm run test:unit` run so it stays 100% green. |
 | **Integration** | `backend/test/sample.test.js` | `npm test` | 32 | Yes | Real HTTP requests fired with chai-http (Chai, 2024) through the full Express stack (routes → middleware → controllers → models) against a live MongoDB Atlas connection. Both suites run on Mocha (Mocha, 2024). |
 
 Unit-test `describe` blocks are all prefixed with `UNIT:` so they are easy to identify in the reporter output.
@@ -392,6 +395,16 @@ Pure, isolated tests — no network, no database. Every one passes.
 | UT-71 | Proxy.delete | throws 403 for a non-admin | Access control |
 | UT-72 | Proxy.delete | throws 404 when the course to delete is not found | Error branch |
 
+### Unit intentional-failure scenarios (3 tests — designed to fail)
+
+Mirroring integration TC-32, these live in `backend/test/unit/intentionalFailure.test.js` and each asserts something deliberately **wrong** about otherwise-correct code, proving the unit suite catches regressions rather than passing trivially. They are **excluded** from `npm run test:unit` (via the `ignore` key in `.mocharc.unit.yml`) so the gated suite stays green; run them on demand with `npm run test:unit:demo`.
+
+| Test Case ID | Description | Expected Output | Actual Output |
+|---|---|---|---|
+| UT-F1 | Factory asserted to return a `StudentUser` for role `"admin"` (it correctly returns an `AdminUser`) | Test passes only if the Factory is broken | `AssertionError: expected AdminUser to be an instance of StudentUser` → **Fail (by design)** |
+| UT-F2 | `SortByCapacity` asserted to sort **ascending** `[10, 30, 50]` (it correctly sorts descending) | Test passes only if the comparator is flipped | `AssertionError: expected [50, 30, 10] to deeply equal [10, 30, 50]` → **Fail (by design)** |
+| UT-F3 | `StudentUser` asserted to hold the `delete_course` permission (students correctly cannot delete) | Test passes only if privilege escalation is introduced | `AssertionError: expected [Array(4)] to include 'delete_course'` → **Fail (by design)** |
+
 ### Integration test cases (32 tests)
 
 Test 32 is an **intentional failure** kept in the suite on purpose, to demonstrate that the suite actually catches incorrect behaviour rather than passing trivially.
@@ -437,13 +450,14 @@ Test 32 is an **intentional failure** kept in the suite on purpose, to demonstra
 cd backend
 npm install
 
-npm run test:unit   # 72 unit tests — no database needed
-npm test            # 32 integration tests — needs MONGO_URI in .env
+npm run test:unit        # 72 unit tests — no database needed (all pass)
+npm run test:unit:demo   # 3 intentional-failure tests — no database needed (all fail by design)
+npm test                 # 32 integration tests — needs MONGO_URI in .env
 ```
 
 ### Test configuration
 
-Two Mocha config files keep the suites cleanly separated:
+Three Mocha config files keep the runs cleanly separated:
 
 **`backend/.mocharc.yml`** — integration suite (used by `npm test`):
 
@@ -453,19 +467,31 @@ timeout: 15000
 exit: true
 ```
 
-**`backend/.mocharc.unit.yml`** — unit suite (used by `npm run test:unit`):
+**`backend/.mocharc.unit.yml`** — gated unit suite (used by `npm run test:unit`):
 
 ```yaml
 spec: 'test/unit/**/*.test.js'
+ignore: 'test/unit/intentionalFailure.test.js'   # keep the gated suite green
+require: './test/unit/_setup.js'
+timeout: 5000
+exit: true
+```
+
+**`backend/.mocharc.unit-demo.yml`** — intentional-failure demo (used by `npm run test:unit:demo`):
+
+```yaml
+spec: 'test/unit/intentionalFailure.test.js'
 require: './test/unit/_setup.js'
 timeout: 5000
 exit: true
 ```
 
 The integration `spec` is scoped to `test/*.test.js` (non-recursive) so the unit
-tests under `test/unit/` are not swept into the DB-dependent run. The unit config
-loads `_setup.js`, which silences the classes' diagnostic `console.log` output so
-the reporter stays readable.
+tests under `test/unit/` are not swept into the DB-dependent run. The gated unit
+config `ignore`s the intentional-failure file so `npm run test:unit` stays 100%
+green as a CI gate, while `npm run test:unit:demo` runs only those deliberate
+failures. All unit configs load `_setup.js`, which silences the classes'
+diagnostic `console.log` output so the reporter stays readable.
 
 ---
 
@@ -482,6 +508,7 @@ push to main
 │  Run tests  │  runs-on: ubuntu-latest
 │  (backend)  │  → npm install --prefix backend
 │             │  → npm run test:unit --prefix backend   (72 unit tests, no DB)
+│             │  → npm run test:unit:demo --prefix backend (3 intentional fails, continue-on-error)
 └──────┬──────┘  → npm test --prefix backend            (32 integration tests)
        │         (integration step uses MONGO_URI + JWT_SECRET from GitHub Secrets)
        ▼

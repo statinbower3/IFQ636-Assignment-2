@@ -1,0 +1,8 @@
+# Mocha config for the INTENTIONAL-FAILURE unit demo.
+# These tests are designed to fail — they prove the unit suite catches bugs
+# (the unit-test counterpart to the integration suite's TC-32).
+# Use via:  npm run test:unit:demo
+spec: 'test/unit/intentionalFailure.test.js'
+require: './test/unit/_setup.js'
+timeout: 5000
+exit: true

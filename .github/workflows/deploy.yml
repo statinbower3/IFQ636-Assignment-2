@@ -25,6 +25,13 @@ jobs:
       - name: Run backend unit tests
         run: npm run test:unit --prefix backend
 
+      # Intentional-failure demo (unit): three tests designed to fail, proving the
+      # unit suite catches incorrect behaviour (the unit counterpart to TC-32).
+      # continue-on-error so the deliberate failures don't block the pipeline.
+      - name: Run backend unit test failure demo
+        run: npm run test:unit:demo --prefix backend
+        continue-on-error: true
+
       # Integration tests: fire real HTTP requests against the Express app and a
       # live MongoDB Atlas connection. Kept as continue-on-error because the
       # suite intentionally includes one failing assertion (TC-32) to prove the
