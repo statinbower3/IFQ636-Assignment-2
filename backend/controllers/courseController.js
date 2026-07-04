@@ -73,7 +73,16 @@ const getCourses = async (req, res) => {
     const sorter  = new CourseSorter(getStrategy(sortBy));
     const sorted  = sorter.sort(courses);
 
-    return res.status(200).json(sorted);
+    // DECORATOR: add availability info to each course 
+    const decorated = sorted.map((course) => {
+      const plain = course.toObject ? course.toObject() : course;
+      const availability = course.getAvailabilityInfo
+        ? course.getAvailabilityInfo()
+        : { seatsRemaining: plain.capacity - plain.enrolled, status: 'available' };
+      return { ...plain, ...availability };
+    });
+
+    return res.status(200).json(decorated);
   } catch (error) {
     const status = error.statusCode || 500;
     return res.status(status).json({ message: error.message });
