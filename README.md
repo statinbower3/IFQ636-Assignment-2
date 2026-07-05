@@ -278,10 +278,12 @@ All protected endpoints require an `Authorization: Bearer <token>` header.
 
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
-| POST | `/api/auth/register` | None | Create a new user account (role: student) |
-| POST | `/api/auth/login` | None | Log in and receive a 30-day JWT |
+| POST | `/api/auth/register` | None | Create a new student user account (role: student) |
+| POST | `/api/auth/login` | None | Student Log in and receive a 30-day JWT |
+| POST | `/api/auth/login` | None | Admin Log in and receive a 30-day JWT |
 | GET | `/api/auth/profile` | JWT | Get the current user's profile |
 | PUT | `/api/auth/profile` | JWT | Update name, email, university, address |
+| POST | `/api/auth/profile` | JWT | Wrong password |
 
 ### Courses — `/api/courses`
 
@@ -292,12 +294,13 @@ All protected endpoints require an `Authorization: Bearer <token>` header.
 | POST | `/api/courses` | JWT | Create a new course |
 | PUT | `/api/courses/:id` | JWT | Update a course |
 | DELETE | `/api/courses/:id` | JWT | Delete a course (cascades to enrolments) |
+| POST | `/api/auth/profile` | JWT | Wrong course selection |
 
 ### Enrollments — `/api/enrollments`
 
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
-| POST | `/api/enrollments/:courseId` | JWT | Enrol in a course (capacity enforced) |
+| PUT | `/api/enrollments/:courseId` | JWT | Enrol in a course (capacity enforced) |
 | GET | `/api/enrollments/my` | JWT | Get current student's enrolments |
 | DELETE | `/api/enrollments/:courseId` | JWT | Drop a course |
 | GET | `/api/enrollments/all` | JWT | Get all enrolments (admin view) |
