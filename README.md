@@ -628,10 +628,6 @@ Extending the test coverage raised a different kind of challenge. The original s
 
 For the collaboration aspect of creating this system, one of the biggest difficulties we faced was communication between members as it was hard to work around the varying schedules and responsibilities outside of the project each team member had. Sometimes it was difficult to coordinate our work and respond to each other promptly. In the future, we reflected that we would start earlier and schedule regular team meetings and assign responsibilities sooner. As well as a greater effort to respond to each would improve our overall teamwork and organisation. Overall, we are happy with the outcome of our project. We believe we have gained a better understanding of OOP principles and streamlining the development workflow with CI/CD as well as the use of Postman to develop and test our APIs. Our technical skills and our ability to work collaboratively have been strengthened and we now have valuable hands-on experience to use in the industry. 
 
-### What I would do differently
-
-With additional time I would invest more effort in the Figma prototype before beginning frontend development. I would write the Mocha test suite alongside each controller rather than after all controllers were complete, and I would introduce the design-pattern layer earlier in the build rather than retrofitting it, since several of the Facade's orchestration steps were already informally scattered across the controller and had to be carefully extracted without changing behaviour.
-
 ### Collaboration and tool use
 
 Claude (Anthropic, 2026) was used throughout this assignment as a collaborative coding and debugging assistant, in line with the unit's permitted use of AI tools. Specific uses included: debugging the bcrypt pre-save hook hang and the React auth-state persistence issue; reviewing the seven design-pattern implementations against their canonical definitions for correctness; generating the SysML diagrams (Object Management Group, 2019), Postman collection, and this README's structure; and proofreading the Reflection section above for clarity. The project's overall design-science framing follows Wieringa (2014). All architectural decisions, the choice of which seven patterns to implement and where, and the final code were reviewed and understood before submission. No AI-generated content was submitted without being read, tested, and, where necessary, corrected.
@@ -639,27 +635,48 @@ Claude (Anthropic, 2026) was used throughout this assignment as a collaborative 
 ---
 
 ## References
+Amazon Web Services. (2024). Getting started with Amazon EC2. https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EC2_GetStarted.html 
 
-- Amazon Web Services. (2024). *Getting started with Amazon EC2*. https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EC2_GetStarted.html
-- Anthropic. (2026). *Claude* (Sonnet 4.6) [Large language model]. https://claude.ai
-- Atlassian. (2024). *Scrum with Jira Software*. https://www.atlassian.com/agile/tutorials/how-to-do-scrum-with-jira-software
-- Axios. (2024). *Axios HTTP client documentation*. https://axios-http.com/docs/intro
-- Chai. (2024). *Chai assertion library documentation*. https://www.chaijs.com/api/
-- Express.js. (2024). *Express 4.x API reference*. https://expressjs.com/en/4x/api.html
-- Gamma, E., Helm, R., Johnson, R., & Vlissides, J. (1994). *Design patterns: Elements of reusable object-oriented software*. Addison-Wesley.
-- GitHub Docs. (2024). *Understanding GitHub Actions*. https://docs.github.com/en/actions/learn-github-actions/understanding-github-actions
-- MDN Web Docs. (2024). *Private class features*. Mozilla. https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Classes/Private_properties
-- Mocha. (2024). *Mocha — the fun, simple, flexible JavaScript test framework*. https://mochajs.org
-- MongoDB. (2024). *MongoDB Atlas documentation*. https://www.mongodb.com/docs/atlas/
-- Mongoose. (2024). *Mongoose v6 documentation — getting started*. https://mongoosejs.com/docs/guide.html
-- Nginx. (2024). *Beginner's guide to Nginx*. https://nginx.org/en/docs/beginners_guide.html
-- Node.js. (2024). *Events — EventEmitter class*. OpenJS Foundation. https://nodejs.org/api/events.html
-- npm. (2024a). *bcrypt package*. https://www.npmjs.com/package/bcrypt
-- npm. (2024b). *jsonwebtoken package*. https://www.npmjs.com/package/jsonwebtoken
-- Object Management Group. (2019). *OMG Systems Modeling Language (OMG SysML™) v1.6*. https://www.omg.org/spec/SysML/1.6/PDF
-- PM2. (2024). *PM2 — advanced process manager for Node.js*. https://pm2.keymetrics.io/docs/usage/quick-start/
-- React. (2024). *React documentation — learn React*. https://react.dev/learn
-- Refactoring Guru. (2024). *Design patterns*. https://refactoring.guru/design-patterns
-- Sinon.JS. (2024). *Standalone test spies, stubs and mocks for JavaScript*. https://sinonjs.org/
-- Tailwind Labs. (2024). *Tailwind CSS documentation*. https://tailwindcss.com/docs
-- Wieringa, R. J. (2014). *Design science methodology for information systems and software engineering*. Springer.
+Anthropic. (2026). Claude (Sonnet 4.6) [Large language model]. https://claude.ai 
+
+Atlassian. (2024). Scrum with Jira Software. https://www.atlassian.com/agile/tutorials/how-to-do-scrum-with-jira-software 
+
+Axios. (2024). Axios HTTP client documentation. https://axios-http.com/docs/intro 
+
+Chai. (2024). Chai assertion library documentation. https://www.chaijs.com/api/ 
+
+Express.js. (2024). Express 4.x API reference. https://expressjs.com/en/4x/api.html 
+
+Gamma, E., Helm, R., Johnson, R., & Vlissides, J. (1994). Design patterns: Elements of reusable object-oriented software. Addison-Wesley. 
+
+GitHub Docs. (2024). Understanding GitHub Actions. https://docs.github.com/en/actions/learn-github-actions/understanding-github-actions 
+
+MDN Web Docs. (2024). Private class features. Mozilla. https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Classes/Private_properties 
+
+Mocha. (2024). Mocha — the fun, simple, flexible JavaScript test framework. https://mochajs.org 
+
+MongoDB. (2024). MongoDB Atlas documentation. https://www.mongodb.com/docs/atlas/ 
+
+Mongoose. (2024). Mongoose v6 documentation — getting started. https://mongoosejs.com/docs/guide.html 
+
+Nginx. (2024). Beginner's guide to Nginx. https://nginx.org/en/docs/beginners_guide.html 
+
+Node.js. (2024). Events — EventEmitter class. OpenJS Foundation. https://nodejs.org/api/events.html 
+
+npm. (2024a). bcrypt package. https://www.npmjs.com/package/bcrypt 
+
+npm. (2024b). jsonwebtoken package. https://www.npmjs.com/package/jsonwebtoken 
+
+Object Management Group. (2019). OMG Systems Modeling Language (OMG SysML™) v1.6. https://www.omg.org/spec/SysML/1.6/PDF 
+
+PM2. (2024). PM2 — advanced process manager for Node.js. https://pm2.keymetrics.io/docs/usage/quick-start/ 
+
+React. (2024). React documentation — learn React. https://react.dev/learn 
+
+Refactoring Guru. (2024). Design patterns. https://refactoring.guru/design-patterns 
+
+Sinon.JS. (2024). Standalone test spies, stubs and mocks for JavaScript. https://sinonjs.org/ 
+
+Tailwind Labs. (2024). Tailwind CSS documentation. https://tailwindcss.com/docs 
+
+Wieringa, R. J. (2014). Design science methodology for information systems and software engineering. Springer. 
