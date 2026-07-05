@@ -14,6 +14,7 @@ A full-stack course registration platform built on the MERN stack (MongoDB, Expr
 - [Tech Stack](#tech-stack)
 - [Project Structure](#project-structure)
 - [Design Patterns & OOP](#design-patterns--oop)
+- [Code Walkthrough](#code-walkthrough)
 - [Getting Started (Local)](#getting-started-local)
 - [Environment Variables](#environment-variables)
 - [API Endpoints](#api-endpoints)
@@ -180,6 +181,163 @@ Request → RequestChain (Logging → Sanitisation)
                 → CourseSorter + getStrategy() (Strategy)
             → DatabaseConnection (Singleton, used once at startup)
 ```
+
+---
+
+## Code Walkthrough
+
+This section traces how the code actually executes — first the backend request
+lifecycle, then the frontend architecture, and finally two end-to-end journeys
+that connect a button click in the browser to a database write on the server.
+Every backend file already carries a JSDoc header; every frontend file was
+annotated with JSDoc/inline comments to match.
+
+### Backend: the request lifecycle
+
+Every HTTP request flows through the same layered pipeline before a response is
+returned:
+
+```
+HTTP request
+  → server.js            cors() → express.json() → Chain of Responsibility
+                         (LoggingHandler → SanitizationHandler)
+  → routes/*.js          matches the URL + method, applies route-level middleware
+  → middleware/auth       (protected routes only) protect chain → adminOnly guard
+  → controllers/*.js      thin orchestration only
+  → patterns/*            Proxy / Facade / Strategy / Factory do the real work
+  → models/*.js           Mongoose reads/writes MongoDB (one Singleton connection)
+  → JSON response
+```
+
+The important design point is that **controllers stay thin**. They translate
+between HTTP and the domain, but the actual rules (who may act, capacity checks,
+sorting, notifications) live in the pattern classes under `backend/patterns/`.
+
+#### Layer-by-layer
+
+| Layer | Files | Responsibility |
+|---|---|---|
+| **Entry / bootstrap** | `server.js`, `config/db.js` | Build the Express app, install the global middleware chain, mount routers, and (only when run directly) open the single MongoDB connection via the Singleton. `server.js` also exports `app` so the test suite can import it without starting a listener. |
+| **Routing** | `routes/authRoutes.js`, `routes/courseRoutes.js`, `routes/enrollmentRoutes.js` | Map URL + method to a controller function and declare which middleware guards each route (e.g. `protect`, `adminOnly`). |
+| **Middleware** | `middleware/authMiddleware.js` | `protect` is itself a Chain of Responsibility: `TokenExtractionHandler → TokenVerificationHandler → UserFetchHandler`. Each link either continues the chain or short-circuits with a 401. `adminOnly` is a simple role guard that runs after `protect`. |
+| **Controllers** | `controllers/authController.js`, `courseController.js`, `enrollmentController.js` | Read `req`, delegate to a pattern, shape the JSON response, and normalise errors (`error.statusCode || 500`). |
+| **Patterns / domain** | `patterns/**`, `oop/**` | Where the behaviour lives — see the Design Patterns & OOP section above. |
+| **Models** | `models/User.js`, `Course.js`, `Enrollment.js` | Mongoose schemas + persistence hooks (e.g. the bcrypt pre-save hook on `User`). |
+
+#### How each controller uses its patterns
+
+- **`authController`** — on register/login it saves through the `User` model,
+  then calls `UserFactory.createUser()` (**Factory**) to obtain a role-correct
+  domain object and logs its polymorphic `.describe()` / `.getPermissions()`.
+  JWT creation is encapsulated in a private `_generateToken()` helper.
+- **`courseController`** — never touches the `Course` model directly. Reads and
+  writes go through `courseProxy` (**Proxy**), which enforces admin-only
+  mutations and writes an audit log before delegating to the real
+  `CourseService`. Listing additionally runs the result through a
+  `CourseSorter` + `getStrategy(req.query.sortBy)` (**Strategy**).
+- **`enrollmentController`** — enrol/drop are single calls to
+  `registrationFacade` (**Facade**), which internally performs course lookup,
+  capacity check, duplicate check, the DB write, the seat-counter update, and
+  fires **Observer** events (`enrollment:created`, `enrollment:dropped`,
+  `course:full`) to independent subscribers (audit logger, simulated email
+  notifier, capacity alert).
+
+### Frontend: architecture
+
+The frontend is a Create-React-App single-page app (React 18 + react-router v6
++ Tailwind) that talks to the backend exclusively through one shared Axios
+instance.
+
+```
+index.js
+  └─ <React.StrictMode>
+       └─ <AuthProvider>          global auth state (user + token), persisted to localStorage
+            └─ <App>              <Navbar> + <Routes>
+                 ├─ /  /courses   CourseList   (browse + enrol)
+                 ├─ /my-courses   MyCourses    (list own enrolments + drop)
+                 ├─ /admin        AdminPanel   (course CRUD + enrolment table) — admin-guarded
+                 ├─ /login        Login
+                 ├─ /register     Register
+                 └─ /profile      Profile      (view + update)
+```
+
+| Concern | File | Notes |
+|---|---|---|
+| **Bootstrap** | `index.js` | Mounts the tree and wraps it in `AuthProvider` so `useAuth()` works everywhere. |
+| **Global state** | `context/AuthContext.js` | Holds `user` (including the JWT), exposes `login()`/`logout()`, and mirrors the user to `localStorage` so a refresh keeps the session. `useAuth()` is the access hook. |
+| **API client** | `axiosConfig.jsx` | One Axios instance with the base URL and JSON header. It does **not** attach the token globally — protected calls pass `Authorization: Bearer <token>` per request. |
+| **Routing + guard** | `App.js` | Declares routes and guards `/admin` inline (`user?.role === 'admin' ? <AdminPanel/> : <Navigate to="/courses"/>`). This is a UX convenience only; the backend independently enforces admin access. |
+| **Navigation** | `components/Navbar.jsx` | Role-aware links; the Admin link only renders for admins; logout clears state and redirects to `/login`. |
+
+#### Page-by-page
+
+| Page | Reads | Writes | Pattern in the UI |
+|---|---|---|---|
+| `Login.jsx` | — | `POST /api/auth/login` | On success calls context `login()` then redirects to `/courses`. |
+| `Register.jsx` | — | `POST /api/auth/register` | Creates a student account; redirects to `/login` (no auto-login). |
+| `Profile.jsx` | `GET /api/auth/profile` | `PUT /api/auth/profile` | Fetches on mount into a controlled form; a single `loading` flag drives the "Loading…/Updating…" states. |
+| `CourseList.jsx` | `GET /api/courses` | `POST /api/enrollments/:id` | Card grid; Enrol re-fetches so the seat counter and "Course Full" disabled state stay accurate. |
+| `MyCourses.jsx` | `GET /api/enrollments/my` | `DELETE /api/enrollments/:id` | Uses the populated `course` sub-document; drop removes the row from local state on success. |
+| `AdminPanel.jsx` | `GET /api/courses`, `GET /api/enrollments/all` | `POST`/`PUT`/`DELETE /api/courses/:id` | Create/edit share one controlled form; edit mode is tracked by `editingCourse`; delete cascades enrolments backend-side. |
+
+Every page follows the same controlled-form + `useEffect`-fetch + `useAuth()`
+pattern, which keeps them easy to read once you know one of them.
+
+> **Note on `TaskForm.jsx`, `TaskList.jsx`, `pages/Tasks.jsx`:** these are
+> leftover scaffolding from the MERN task-manager starter this project was built
+> on. They call an `/api/tasks` endpoint that this backend does not implement,
+> and `Tasks.jsx` is not registered in `App.js`, so they are unreachable in the
+> running app. They are annotated as legacy and retained for history; they can be
+> deleted without affecting the course-registration features.
+
+### End-to-end journeys
+
+Tracing two complete flows shows how the frontend pages and backend patterns fit
+together.
+
+#### Journey 1 — A student enrols in a course
+
+```
+CourseList.jsx: handleEnroll(courseId)
+  → axiosInstance.post('/api/enrollments/:courseId', {}, { Authorization: Bearer <token> })
+  → server.js chain: LoggingHandler → SanitizationHandler
+  → enrollmentRoutes.js: POST '/:courseId' guarded by `protect`
+  → authMiddleware: TokenExtraction → TokenVerification → UserFetch  (sets req.user)
+  → enrollmentController.enrollCourse
+  → RegistrationFacade.enrollStudent(studentId, {name,email}, courseId)   [Facade]
+       1. _findCourse            (404 if missing)
+       2. _checkCapacity         (fires 'course:full' + 400 if full)      [Observer]
+       3. _checkDuplicate        (400 if already enrolled)
+       4. _createEnrollment      (Enrollment model → MongoDB)
+       5. _incrementEnrolled     (Course.enrolled += 1)
+       6. _notifyEnrollment      (fires 'enrollment:created')             [Observer]
+  → 201 + enrollment JSON
+  → CourseList re-fetches GET /api/courses so the seat counter updates
+```
+
+If any step throws, the controller maps `error.statusCode` to the HTTP status
+and the page shows the backend's message (e.g. *"Course is full"*).
+
+#### Journey 2 — An admin creates a course
+
+```
+AdminPanel.jsx: handleSubmit (create mode)
+  → axiosInstance.post('/api/courses', formData, { Authorization: Bearer <token> })
+  → server.js chain: LoggingHandler → SanitizationHandler
+  → courseRoutes.js: POST '/' guarded by `protect` then `adminOnly`
+  → authMiddleware protect chain sets req.user; adminOnly checks role === 'admin' (403 otherwise)
+  → courseController.createCourse
+  → courseProxy.create(data, req.user)                                    [Proxy]
+       _assertAdmin(user)   → 403 if not admin (defence-in-depth)
+       _logAccess('create_course', user)  → audit log entry
+       _realService.create(data)  → Course model → MongoDB
+  → 201 + course JSON
+  → AdminPanel resets the form and re-fetches the course list
+```
+
+Note the layered access control: the route's `adminOnly` middleware *and* the
+Proxy's `_assertAdmin` both check the admin role, so even a direct call that
+somehow bypassed the route guard would still be rejected by the Proxy.
 
 ---
 

@@ -1,16 +1,29 @@
+/**
+ * @file Profile.jsx
+ * @description View + edit the logged-in user's profile.
+ *
+ * FLOW:
+ *   - On mount (and whenever `user` changes) → GET /api/auth/profile to fetch
+ *     current name/email/university/address into the form.
+ *   - On submit → PUT /api/auth/profile to save changes.
+ * Both calls are authenticated with the Bearer token from AuthContext. A single
+ * `loading` flag drives the "Loading..."/"Updating..." UI states.
+ */
+
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import axiosInstance from '../axiosConfig';
 
 const Profile = () => {
   const { user } = useAuth(); // Access user token from context
+  // Controlled form state seeded from the fetched profile.
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     university: '',
     address: '',
   });
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(false); // toggles fetch/submit UI states
 
   useEffect(() => {
     // Fetch profile data from the backend
@@ -20,6 +33,7 @@ const Profile = () => {
         const response = await axiosInstance.get('/api/auth/profile', {
           headers: { Authorization: `Bearer ${user.token}` },
         });
+        // Seed the form; fall back to '' for optional fields that may be undefined.
         setFormData({
           name: response.data.name,
           email: response.data.email,
@@ -33,9 +47,14 @@ const Profile = () => {
       }
     };
 
+    // Only fetch once a user (with a token) is available.
     if (user) fetchProfile();
   }, [user]);
 
+  /**
+   * Persists the edited profile fields.
+   * @param {React.FormEvent} e
+   */
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -51,6 +70,7 @@ const Profile = () => {
     }
   };
 
+  // While fetching the initial profile, show a lightweight placeholder.
   if (loading) {
     return <div className="text-center mt-20">Loading...</div>;
   }
@@ -87,6 +107,7 @@ const Profile = () => {
           onChange={(e) => setFormData({ ...formData, address: e.target.value })}
           className="w-full mb-4 p-2 border rounded"
         />
+        {/* Button label reflects the in-flight update state. */}
         <button type="submit" className="w-full bg-blue-600 text-white p-2 rounded">
           {loading ? 'Updating...' : 'Update Profile'}
         </button>
